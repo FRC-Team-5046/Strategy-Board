@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { app } from "$lib/stores/app.svelte";
   import { native } from "$lib/native/api";
+  import { installEmbedBridge } from "$lib/features/embed";
   import { buildCommit, dismissRelease, isNativeRuntime, isReleaseDismissed, loadTeamNumber, offlineOnly, parseShareCode, removeShareCodeFromUrl, saveTeamNumber, timeAgo } from "$lib/features";
   import AppLoading from "$lib/components/AppLoading.svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
@@ -56,6 +57,7 @@
       void native.platform.openUrl(anchor.href).catch(() => notice("Could not open that link."));
     };
     window.addEventListener("click", openExternal);
+    if (offlineOnly) installEmbedBridge();
     void (async () => {
       await app.init();
       const [teamNumber, config] = await Promise.all([loadTeamNumber().catch(() => null), native.config.current().catch(() => null)]);
