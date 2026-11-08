@@ -157,7 +157,9 @@ export class WhiteboardController {
     if (!this.refs || !this.match || typeof document === "undefined") return [];
     this.finishPointer();
     const scale = maxWidth && maxWidth > 0 ? Math.min(1, maxWidth / FIELD_WIDTH) : 1;
-    const restore = this.mode; const out: { phase: BoardPhaseName; png: string }[] = [];
+    // A selected robot is drawn highlighted; the sketch shows the plan, not the selection.
+    const restore = this.mode; const selected = this.selected; const out: { phase: BoardPhaseName; png: string }[] = [];
+    this.selected = null;
     try {
       for (const phase of phases) {
         this.mode = phase; this.redrawAll();
@@ -168,7 +170,7 @@ export class WhiteboardController {
         out.push({ phase, png: canvas.toDataURL("image/png") });
       }
     } finally {
-      this.mode = restore; this.redrawAll();
+      this.mode = restore; this.selected = selected; this.redrawAll();
     }
     return out;
   }
