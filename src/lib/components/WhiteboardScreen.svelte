@@ -3,6 +3,7 @@
   import { app } from "$lib/stores/app.svelte";
   import { createWhiteboardController, whiteboardMatchFromPacket, writeWhiteboardPacket, type WhiteboardController, type WhiteboardMatch, type WhiteboardMode, type WhiteboardState } from "$lib/whiteboard";
   import { offlineOnly, safeFilename, savePng } from "$lib/features";
+  import { embedExitHandler, registerEmbedBoard } from "$lib/features/embed-host";
   import StatboticsPanel from "./StatboticsPanel.svelte";
 
   let { pngRequest = 0, onNotice = () => {} }: { pngRequest?: number; onNotice?: (message: string) => void } = $props();
@@ -19,6 +20,9 @@
   let toolbarModes = $state<HTMLDivElement>();
   let toolbarRight = $state<HTMLDivElement>();
   let toolbarFit = $state<"" | "toolbar-condensed" | "toolbar-ultra">("");
+  let palette = $state<HTMLDivElement>();
+  let toolButton = $state<HTMLDivElement>();
+  let gutter = 0;
 
   // Colour picker: expanded shows every swatch plus the close control; collapsed
   // leaves only the active swatch, exactly as the original behaved.
@@ -77,7 +81,32 @@
     const next = createWhiteboardController({ onStateChange: (state) => (ui = state), onCommit: ({ match }) => queueCommit(match) });
     controller = next;
     const destroy = next.mount({ container, background, items, drawing });
-    return () => { destroy(); if (controller === next) controller = null; loadedMatchId = ""; };
+    if (offlineOnly) {
+      registerEmbedBoard({
+        scene: () => next.getMatch(),
+        phase: () => next.getPhase(),
+        exportPhases: (phases, maxWidth) => next.exportPhases(phases, maxWidth),
+        flush: () => saveAll(),
+      });
+    }
+    return () => { if (offlineOnly) registerEmbedBoard(null); destroy(); if (controller === next) controller = null; loadedMatchId = ""; };
+  });
+
+  // Offline (embedded) builds keep the field clear of the floating colour and tool
+  // controls, so the driver station labels at the field's edges stay readable.
+  $effect(() => {
+    if (!offlineOnly || !controller || !ui.isCanvasVisible) return;
+    const measure = () => {
+      const width = (element?: HTMLDivElement) => element && element.offsetWidth ? element.offsetLeft + element.offsetWidth : 0;
+      const right = toolButton && container ? container.clientWidth - toolButton.offsetLeft : 0;
+      gutter = Math.max(gutter, width(palette), right);
+      controller?.setHorizontalInset(gutter ? gutter + 8 : 0);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (palette) observer.observe(palette);
+    if (container) observer.observe(container);
+    return () => observer.disconnect();
   });
 
   $effect(() => {
@@ -127,19 +156,26 @@
     window.setTimeout(() => { paletteClosing = false; paletteOpen = false; }, 300);
   }
 
+  async function saveAll() {
+    controller?.flushPendingGesture();
+    // Do not reopen the match from an old snapshot while IndexedDB is still
+    // saving. Include any gestures completed while the previous write waits.
+    let pending: Promise<void>;
+    do {
+      pending = commitQueue;
+      await pending;
+    } while (pending !== commitQueue);
+  }
+
   async function exit() {
     if (exiting) return;
     exiting = true;
     try {
-      controller?.flushPendingGesture();
-      // Do not reopen the match from an old snapshot while IndexedDB is still
-      // saving. Include any gestures completed while the previous write waits.
-      let pending: Promise<void>;
-      do {
-        pending = commitQueue;
-        await pending;
-      } while (pending !== commitQueue);
-      if (!saveFailed) app.closeMatch();
+      await saveAll();
+      if (saveFailed) return;
+      // An embedding host may take EXIT to close the board instead of showing the match list.
+      const host = offlineOnly ? embedExitHandler() : null;
+      if (host) host(); else app.closeMatch();
     } finally {
       exiting = false;
     }
@@ -227,6 +263,7 @@
 
     {#if ui.isCanvasVisible}
       <div
+        bind:this={toolButton}
         id="whiteboard-draw-config"
         class="absolute flex flex-col justify-center items-center size-10 sm:size-12 md:size-14 lg:size-16 xl:size-20 bottom-3 sm:bottom-4 md:bottom-6 right-3 sm:right-4 md:right-6 bg-[#1a1a1a] border border-[#3a3a3a] rounded-full cursor-pointer"
         role="button"
@@ -241,6 +278,7 @@
       </div>
 
       <div
+        bind:this={palette}
         id="whiteboard-color-config"
         class="absolute flex flex-col justify-center items-center bottom-3 sm:bottom-4 md:bottom-6 left-3 sm:left-4 md:left-6 bg-[#1a1a1a] border border-[#3a3a3a] rounded-full p-2 sm:p-3"
         class:hidden={ui.tool === "eraser"}

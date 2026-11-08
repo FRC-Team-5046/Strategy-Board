@@ -59,6 +59,7 @@ export class WhiteboardController {
   private resizeObserver: ResizeObserver | null = null;
   private abortController: AbortController | null = null;
   private layout = { scale: 1, left: 0, top: 0 };
+  private insetX = 0;
   private readonly options: Required<Pick<WhiteboardControllerOptions, "fieldImages">> & Omit<WhiteboardControllerOptions, "fieldImages">;
 
   constructor(options: WhiteboardControllerOptions = {}) {
@@ -143,6 +144,39 @@ export class WhiteboardController {
     const context = output.getContext("2d"); if (!context) return null;
     for (const canvas of [this.refs.background, this.refs.items, this.refs.drawing]) context.drawImage(canvas, 0, 0);
     return output.toDataURL(type, quality);
+  }
+
+  /** The phase on screen, or null on the Statbotics tab. */
+  getPhase(): BoardPhaseName | null { return this.dataMode(); }
+
+  /**
+   * Renders each phase in turn and returns its PNG (scaled to maxWidth), then
+   * restores the phase on screen. Used by hosts that save a plan sketch.
+   */
+  exportPhases(phases: readonly BoardPhaseName[], maxWidth?: number): { phase: BoardPhaseName; png: string }[] {
+    if (!this.refs || !this.match || typeof document === "undefined") return [];
+    this.finishPointer();
+    const scale = maxWidth && maxWidth > 0 ? Math.min(1, maxWidth / FIELD_WIDTH) : 1;
+    const restore = this.mode; const out: { phase: BoardPhaseName; png: string }[] = [];
+    try {
+      for (const phase of phases) {
+        this.mode = phase; this.redrawAll();
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(FIELD_WIDTH * scale); canvas.height = Math.round(FIELD_HEIGHT * scale);
+        const context = canvas.getContext("2d"); if (!context) continue;
+        for (const layer of [this.refs.background, this.refs.items, this.refs.drawing]) context.drawImage(layer, 0, 0, canvas.width, canvas.height);
+        out.push({ phase, png: canvas.toDataURL("image/png") });
+      }
+    } finally {
+      this.mode = restore; this.redrawAll();
+    }
+    return out;
+  }
+
+  /** Keeps a gutter of this many CSS pixels at the left and right, so floating controls do not cover the field's edges. */
+  setHorizontalInset(pixels: number): void {
+    const next = Number.isFinite(pixels) && pixels > 0 ? pixels : 0;
+    if (next !== this.insetX) { this.insetX = next; this.updateLayout(); }
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
@@ -231,8 +265,10 @@ export class WhiteboardController {
 
   private updateLayout(): void {
     if (!this.refs) return;
-    const layout = canvasLayout(this.refs.container.clientWidth, this.refs.container.clientHeight, FIELD_WIDTH, FIELD_HEIGHT, this.fieldYear());
-    if (!layout) return; this.layout = layout;
+    const inset = Math.min(this.insetX, this.refs.container.clientWidth / 4);
+    const fitted = canvasLayout(this.refs.container.clientWidth - 2 * inset, this.refs.container.clientHeight, FIELD_WIDTH, FIELD_HEIGHT, this.fieldYear());
+    if (!fitted) return;
+    const layout = { ...fitted, left: fitted.left + inset }; this.layout = layout;
     const transform = `translate(${layout.left}px, ${layout.top}px) scale(${layout.scale})`;
     for (const canvas of [this.refs.background, this.refs.items, this.refs.drawing]) canvas.style.transform = transform;
   }

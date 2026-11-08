@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { app } from "$lib/stores/app.svelte";
   import { native } from "$lib/native/api";
-  import { installEmbedBridge } from "$lib/features/embed";
+  import { installEmbedBridge, TEAM_NUMBER_SET_EVENT } from "$lib/features/embed";
   import { buildCommit, dismissRelease, isNativeRuntime, isReleaseDismissed, loadTeamNumber, offlineOnly, parseShareCode, removeShareCodeFromUrl, saveTeamNumber, timeAgo } from "$lib/features";
   import AppLoading from "$lib/components/AppLoading.svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
@@ -57,12 +57,16 @@
       void native.platform.openUrl(anchor.href).catch(() => notice("Could not open that link."));
     };
     window.addEventListener("click", openExternal);
+    // An embedding host may supply the team number, so the first-run question is skipped.
+    let teamFromHost = false;
+    const hostTeam = () => { teamFromHost = true; teamOpen = false; };
+    window.addEventListener(TEAM_NUMBER_SET_EVENT, hostTeam);
     if (offlineOnly) installEmbedBridge();
     void (async () => {
       await app.init();
       const [teamNumber, config] = await Promise.all([loadTeamNumber().catch(() => null), native.config.current().catch(() => null)]);
       if (!active) return;
-      teamOpen = teamNumber === null;
+      teamOpen = teamNumber === null && !teamFromHost;
       const announcement = config?.releaseAnnouncement;
       if (announcement?.enabled && !(await isReleaseDismissed(announcement.id, announcement.showOnce))) {
         if (active) { releaseAnnouncement = announcement; releaseOpen = true; }
@@ -70,7 +74,7 @@
       const code = offlineOnly ? null : parseShareCode();
       if (code && active && await importLink(code)) removeShareCodeFromUrl();
     })().catch(() => notice("Some startup services could not be loaded."));
-    return () => { active = false; window.removeEventListener("click", openExternal); };
+    return () => { active = false; window.removeEventListener("click", openExternal); window.removeEventListener(TEAM_NUMBER_SET_EVENT, hostTeam); };
   });
 
   function notice(message: string) {

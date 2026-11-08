@@ -44,3 +44,12 @@ An offline-only build also exposes `window.strategyBoard` for a host app
 - `openMatch({ name, red, blue, year? })` opens the board for that match,
   creating it the first time.
 - `snapshot(maxWidth?)` returns a PNG data URL of the open board, or `null`.
+- `snapshotPhases(maxWidth?)` returns `{ phase, label, png }` for every phase
+  with drawing, checkboxes or moved robots (the open phase if none has).
+- `setTeamNumber(team)` stores the team number, so the first-run question is
+  skipped.
+- `setExitHandler(fn)` makes EXIT save and then call `fn` instead of showing
+  the match list; `exit()` does the same from the host.
+
+In an offline-only build the field also keeps a gutter at each side, so the
+floating colour and tool controls do not cover the driver station labels.
