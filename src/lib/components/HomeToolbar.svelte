@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { offlineOnly } from "$lib/features/offline";
   let { onNew, onTba, onImportQr, onImportLink, onClear }: { onNew: () => void; onTba: () => void; onImportQr: () => void; onImportLink: () => void; onClear: () => void } = $props();
 </script>
 
@@ -27,6 +28,7 @@
     >
       New
     </button>
+    {#if !offlineOnly}
     <button
       id="home-toolbar-tba-btn"
       class="flex items-center justify-center gap-1.5 md:gap-2 lg:gap-2.5 px-3 sm:px-4 md:px-6 lg:px-10 h-11 md:h-12 lg:h-14 btn-secondary text-sm sm:text-base md:text-lg lg:text-xl"
@@ -35,6 +37,7 @@
       <span>TBA</span>
       <img src="/tba.svg" alt="TBA" class="h-6 sm:h-7 md:h-9 w-auto" />
     </button>
+    {/if}
     <button
       id="home-toolbar-import-btn"
       class="flex items-center justify-center px-3 sm:px-4 md:px-6 lg:px-10 h-11 md:h-12 lg:h-14 btn-secondary text-sm sm:text-base md:text-lg lg:text-xl"
@@ -43,6 +46,7 @@
       <span class="hidden sm:inline">Import QR</span>
       <span class="sm:hidden">Import</span>
     </button>
+    {#if !offlineOnly}
     <button
       id="home-toolbar-import-link-btn"
       class="flex items-center justify-center gap-1.5 md:gap-2 lg:gap-2.5 px-3 sm:px-4 md:px-6 lg:px-10 h-11 md:h-12 lg:h-14 btn-secondary text-sm sm:text-base md:text-lg lg:text-xl"
@@ -51,6 +55,7 @@
       <span>Import</span>
       <i class="fas fa-link"></i>
     </button>
+    {/if}
     <button
       id="home-toolbar-clear-btn"
       class="flex items-center justify-center px-3 sm:px-4 md:px-6 lg:px-10 h-11 md:h-12 lg:h-14 btn-danger text-sm sm:text-base md:text-lg lg:text-xl"

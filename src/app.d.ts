@@ -21,6 +21,8 @@ declare global {
   /** Build-time public client keys used by the browser service adapter. */
   const __FIREBASE_API_KEY__: string;
   const __TBA_API_KEY__: string;
+  /** True for offline-only builds (`VITE_OFFLINE_ONLY=1`). */
+  const __OFFLINE_ONLY__: boolean;
 }
 
 export {};

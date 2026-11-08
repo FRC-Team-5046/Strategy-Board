@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { app } from "$lib/stores/app.svelte";
   import { native } from "$lib/native/api";
-  import { buildCommit, dismissRelease, isNativeRuntime, isReleaseDismissed, loadTeamNumber, parseShareCode, removeShareCodeFromUrl, saveTeamNumber, timeAgo } from "$lib/features";
+  import { buildCommit, dismissRelease, isNativeRuntime, isReleaseDismissed, loadTeamNumber, offlineOnly, parseShareCode, removeShareCodeFromUrl, saveTeamNumber, timeAgo } from "$lib/features";
   import AppLoading from "$lib/components/AppLoading.svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   import ContributorsModal from "$lib/components/ContributorsModal.svelte";
@@ -65,7 +65,7 @@
       if (announcement?.enabled && !(await isReleaseDismissed(announcement.id, announcement.showOnce))) {
         if (active) { releaseAnnouncement = announcement; releaseOpen = true; }
       }
-      const code = parseShareCode();
+      const code = offlineOnly ? null : parseShareCode();
       if (code && active && await importLink(code)) removeShareCodeFromUrl();
     })().catch(() => notice("Some startup services could not be loaded."));
     return () => { active = false; window.removeEventListener("click", openExternal); };
@@ -224,6 +224,7 @@
           <span>{timeAgo(new Date(buildCommit.date))}</span>
         </a>
       </div>
+      {#if !offlineOnly}
       <button
         id="contributors-link-btn"
         class="absolute right-6 flex items-center text-[#999] hover:text-[#ccc] transition-colors text-base"
@@ -232,6 +233,7 @@
       >
         strategyboard.app
       </button>
+      {/if}
     </div>
   </div>
 {/if}

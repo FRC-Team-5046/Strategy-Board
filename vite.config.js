@@ -35,6 +35,8 @@ export default defineConfig(async () => ({
     // also support CI/Vercel secrets without exposing process.env at runtime.
     __FIREBASE_API_KEY__: JSON.stringify(process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || ""),
     __TBA_API_KEY__: JSON.stringify(process.env.VITE_TBA_API_KEY || process.env.TBA_API_KEY || ""),
+    // Offline-only build: hides features that need the internet (see src/lib/features/offline.ts).
+    __OFFLINE_ONLY__: JSON.stringify(process.env.VITE_OFFLINE_ONLY === "1"),
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

@@ -2,7 +2,7 @@
   import { tick } from "svelte";
   import { app } from "$lib/stores/app.svelte";
   import { createWhiteboardController, whiteboardMatchFromPacket, writeWhiteboardPacket, type WhiteboardController, type WhiteboardMatch, type WhiteboardMode, type WhiteboardState } from "$lib/whiteboard";
-  import { safeFilename, savePng } from "$lib/features";
+  import { offlineOnly, safeFilename, savePng } from "$lib/features";
   import StatboticsPanel from "./StatboticsPanel.svelte";
 
   let { pngRequest = 0, onNotice = () => {} }: { pngRequest?: number; onNotice?: (message: string) => void } = $props();
@@ -45,6 +45,7 @@
   const endgameLabel = $derived(fieldYear === 2026 ? "INACTIVE" : "ENDGAME");
   const showTransition = $derived(fieldYear === 2026);
   const showStats = $derived(
+    !offlineOnly &&
     [app.activeMatch?.redOne, app.activeMatch?.redTwo, app.activeMatch?.redThree, app.activeMatch?.blueOne, app.activeMatch?.blueTwo, app.activeMatch?.blueThree]
       .some((team) => team && team.trim() !== ""),
   );
