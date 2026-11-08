@@ -16,11 +16,11 @@ afterAll(() => vi.unstubAllGlobals());
 
 describe("embed bridge", () => {
   it("creates and opens a match with the host's teams", async () => {
-    const id = await createEmbedBridge().openMatch({ name: "Q76", red: ["5046", "9618", "1502"], blue: ["6570", "3641", "4216"], year: 2026 });
+    const id = await createEmbedBridge().openMatch({ name: "Q76", red: ["254", "1678", "118"], blue: ["971", "2056", "4414"], year: 2026 });
     expect(app.screen).toBe("whiteboard");
     expect(app.activeMatch?.id).toBe(id);
-    expect(app.activeMatch?.red).toEqual(["5046", "9618", "1502"]);
-    expect(app.activeMatch?.blue).toEqual(["6570", "3641", "4216"]);
+    expect(app.activeMatch?.red).toEqual(["254", "1678", "118"]);
+    expect(app.activeMatch?.blue).toEqual(["971", "2056", "4414"]);
   });
 
   it("reopens the same board instead of creating a duplicate", async () => {
