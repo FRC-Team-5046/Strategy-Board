@@ -36,6 +36,14 @@ describe("embed bridge", () => {
     expect(app.matches).toHaveLength(1);
   });
 
+  it("creates one board when the host asks twice at once", async () => {
+    const bridge = createEmbedBridge();
+    const match = { name: "Q12", red: ["1", "2", "3"], blue: ["4", "5", "6"] };
+    const [a, b] = await Promise.all([bridge.openMatch(match), createEmbedBridge().openMatch(match)]);
+    expect(a).toBe(b);
+    expect(app.matches.filter((m) => m.matchName === "Q12")).toHaveLength(1);
+  });
+
   it("drops invalid team values and caps the name", async () => {
     await createEmbedBridge().openMatch({ name: "x".repeat(100), red: ["<b>", "254"], blue: ["123456", "", "7"] });
     expect(app.activeMatch?.red).toEqual(["", "254", ""]);

@@ -82,19 +82,29 @@ function startingPhase(match: WhiteboardMatch): WhiteboardPhase {
   return whiteboardMatchFromPacket(packet).auto;
 }
 
+async function openOne(match: EmbedMatch): Promise<string> {
+  await app.init();
+  const name = String(match?.name ?? "").trim().slice(0, 40) || "Untitled match";
+  const red = alliance(match?.red);
+  const blue = alliance(match?.blue);
+  const same = (a: readonly string[], b: readonly string[]) => a.every((t, i) => t === b[i]);
+  const existing = app.matches.find((m) => m.matchName === name && same(m.red, red) && same(m.blue, blue));
+  const year = Number.isInteger(match?.year) ? match.year : undefined;
+  const id = existing?.id ?? await app.createMatch({ matchName: name, redTeams: red, blueTeams: blue, tbaYear: year });
+  app.openMatch(id);
+  return id;
+}
+
+// Calls to openMatch run one at a time: two overlapping calls for a new match must not both
+// miss the lookup and create two boards with the same name.
+let opening: Promise<unknown> = Promise.resolve();
+
 export function createEmbedBridge(): StrategyBoardEmbed {
   return {
-    async openMatch(match) {
-      await app.init();
-      const name = String(match?.name ?? "").trim().slice(0, 40) || "Untitled match";
-      const red = alliance(match?.red);
-      const blue = alliance(match?.blue);
-      const same = (a: readonly string[], b: readonly string[]) => a.every((t, i) => t === b[i]);
-      const existing = app.matches.find((m) => m.matchName === name && same(m.red, red) && same(m.blue, blue));
-      const year = Number.isInteger(match?.year) ? match.year : undefined;
-      const id = existing?.id ?? await app.createMatch({ matchName: name, redTeams: red, blueTeams: blue, tbaYear: year });
-      app.openMatch(id);
-      return id;
+    openMatch(match) {
+      const run = opening.then(() => openOne(match), () => openOne(match));
+      opening = run.catch(() => undefined);
+      return run;
     },
     async setTeamNumber(team) {
       const saved = await saveTeamNumber(String(team ?? ""));
