@@ -17,7 +17,16 @@ type Action =
   | { kind: "transform"; slot: Slot; before: Pick<RobotPosition, "x" | "y" | "r">; after: Pick<RobotPosition, "x" | "y" | "r"> };
 
 const slots: readonly Slot[] = ["redOne", "redTwo", "redThree", "blueOne", "blueTwo", "blueThree"];
-const COLORS = ["#ffffff", "#ef4444", "#3b82f6", "#22c55e", "#eab308"] as const;
+// Pens. Stroke and checkbox colours are stored as indices in saved boards, share links and QR packets, so an index
+// never changes meaning: 0 is the generic white pen, 1-4 are the original red, blue, green and yellow pens (no longer
+// offered, kept so older drawings still show), and 5-10 are one pen per robot. The red alliance gets warm colours and
+// the blue alliance cool ones, none of them pure red or blue. An older build shows indices it does not know as white.
+const COLORS = ["#ffffff", "#ef4444", "#3b82f6", "#22c55e", "#eab308", "#facc15", "#fb923c", "#f472b6", "#22d3ee", "#4ade80", "#a78bfa"] as const;
+export const ROBOT_PEN: Readonly<Record<Slot, number>> = { redOne: 5, redTwo: 6, redThree: 7, blueOne: 8, blueTwo: 9, blueThree: 10 };
+/** The CSS colour of a pen index; unknown indices draw with the generic white pen. */
+export function penColor(index: number): string { return COLORS[validColor(index)]; }
+// Team numbers keep the alliance colour (the bright red and blue pens, readable on the dark inside); the bumper shows the robot pen.
+const ALLIANCE_TEXT = { red: "#ef4444", blue: "#3b82f6" } as const;
 const VIEWS: Record<View, Point> = { full: [FIELD_WIDTH / 2, FIELD_HEIGHT / 2], red: [(FIELD_WIDTH * 3) / 4, FIELD_HEIGHT / 2], blue: [FIELD_WIDTH / 4, FIELD_HEIGHT / 2] };
 const fieldImageCache = new Map<string, HTMLImageElement>();
 
@@ -309,11 +318,11 @@ export class WhiteboardController {
     for (const slot of slots) this.drawRobot(context, slot, phase[`${slot}Robot`]);
   }
   private drawRobot(context: CanvasRenderingContext2D, slot: Slot, robot: RobotPosition): void {
-    const [x, y] = this.screen([robot.x, robot.y]); const selected = this.selected?.slot === slot; const team = isBlue(slot) ? "#2563eb" : "#dc2626";
-    context.save(); context.translate(x, y); context.rotate(robot.r); context.fillStyle = team; if (selected) { context.shadowBlur = 28; context.shadowColor = "#fff"; } context.beginPath(); context.roundRect(-robot.w / 2, -robot.h / 2, robot.w, robot.h, 20); context.fill(); context.shadowBlur = 0;
+    const [x, y] = this.screen([robot.x, robot.y]); const selected = this.selected?.slot === slot; const pen = penColor(ROBOT_PEN[slot]);
+    context.save(); context.translate(x, y); context.rotate(robot.r); context.fillStyle = pen; if (selected) { context.shadowBlur = 28; context.shadowColor = "#fff"; } context.beginPath(); context.roundRect(-robot.w / 2, -robot.h / 2, robot.w, robot.h, 20); context.fill(); context.shadowBlur = 0;
     context.fillStyle = "#242429"; context.beginPath(); context.roundRect(-robot.w / 2 + 17, -robot.h / 2 + 17, robot.w - 34, robot.h - 34, 10); context.fill();
-    context.fillStyle = "#fff"; context.font = "bold 48px sans-serif"; context.textAlign = "center"; context.textBaseline = "middle"; if (this.match && (this.view === "full" || (this.view === "blue") === isBlue(slot))) context.fillText(this.match[slot], 0, 0);
-    if (selected) { context.beginPath(); context.arc(isBlue(slot) ? -robot.w / 2 : robot.w / 2, 0, 20, 0, Math.PI * 2); context.fill(); }
+    context.fillStyle = isBlue(slot) ? ALLIANCE_TEXT.blue : ALLIANCE_TEXT.red; context.font = "bold 48px sans-serif"; context.textAlign = "center"; context.textBaseline = "middle"; if (this.match && (this.view === "full" || (this.view === "blue") === isBlue(slot))) context.fillText(this.match[slot], 0, 0);
+    if (selected) { context.fillStyle = "#fff"; context.beginPath(); context.arc(isBlue(slot) ? -robot.w / 2 : robot.w / 2, 0, 20, 0, Math.PI * 2); context.fill(); }
     context.restore();
   }
   private redrawDrawing(): void {

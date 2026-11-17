@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { app } from "$lib/stores/app.svelte";
-  import { createWhiteboardController, whiteboardMatchFromPacket, writeWhiteboardPacket, type WhiteboardController, type WhiteboardMatch, type WhiteboardMode, type WhiteboardState } from "$lib/whiteboard";
+  import { createWhiteboardController, penColor, ROBOT_PEN, whiteboardMatchFromPacket, writeWhiteboardPacket, type WhiteboardController, type WhiteboardMatch, type WhiteboardMode, type WhiteboardState } from "$lib/whiteboard";
   import { offlineOnly, safeFilename, savePng } from "$lib/features";
   import { embedExitHandler, registerEmbedBoard } from "$lib/features/embed-host";
   import StatboticsPanel from "./StatboticsPanel.svelte";
@@ -37,13 +37,22 @@
   let exiting = $state(false);
   let handledPngRequest = 0;
 
-  const swatches = [
-    { id: "yellow", index: 4, classes: "bg-yellow-500 border-amber-600" },
-    { id: "green", index: 3, classes: "bg-green-500 border-green-700" },
-    { id: "blue", index: 2, classes: "bg-blue-500 border-blue-700" },
-    { id: "red", index: 1, classes: "bg-red-500 border-red-700" },
-    { id: "white", index: 0, classes: "bg-white border-gray-300" },
+  // One pen per robot (its border and team number on the field use the same colour), then the generic white pen.
+  const robotSwatches = [
+    { id: "red-1", slot: "redOne", name: "Red 1" },
+    { id: "red-2", slot: "redTwo", name: "Red 2" },
+    { id: "red-3", slot: "redThree", name: "Red 3" },
+    { id: "blue-1", slot: "blueOne", name: "Blue 1" },
+    { id: "blue-2", slot: "blueTwo", name: "Blue 2" },
+    { id: "blue-3", slot: "blueThree", name: "Blue 3" },
   ] as const;
+  const swatches = $derived([
+    ...robotSwatches.map((robot) => {
+      const team = app.activeMatch?.[robot.slot];
+      return { id: robot.id, index: ROBOT_PEN[robot.slot], label: team ? `${robot.name} (${team})` : robot.name };
+    }),
+    { id: "white", index: 0, label: "white" },
+  ]);
 
   const teleopLabel = $derived(fieldYear === 2026 ? "ACTIVE" : "TELEOP");
   const endgameLabel = $derived(fieldYear === 2026 ? "INACTIVE" : "ENDGAME");
@@ -287,12 +296,14 @@
         {#each swatches as swatch (swatch.id)}
           <div
             id="whiteboard-color-{swatch.id}"
-            class="size-5 sm:size-6 md:size-8 lg:size-10 xl:size-12 m-1 sm:m-1.5 md:m-2 rounded-full border-2 cursor-pointer {swatch.classes}"
+            class="size-5 sm:size-6 md:size-8 lg:size-10 xl:size-12 m-1 sm:m-1.5 md:m-2 rounded-full border-2 border-black/40 cursor-pointer"
+            style:background-color={penColor(swatch.index)}
+            title={swatch.label}
             class:hidden={!paletteOpen && ui.color !== swatch.index}
             class:border-4={pickedColor === swatch.index}
             role="button"
             tabindex="0"
-            aria-label="Use {swatch.id} ink"
+            aria-label="Use {swatch.label} ink"
             onclick={() => pickColor(swatch.index)}
             onkeydown={(event) => { if (event.key === "Enter" || event.key === " ") pickColor(swatch.index); }}
           ></div>
